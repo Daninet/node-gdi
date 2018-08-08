@@ -1,0 +1,40 @@
+{
+  "name": "gdi",
+  "version": "0.1.0",
+  "description": "Node.js bindings to Windows GDI (graphics device interface)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node-gyp configure build && node module.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install": "node-pre-gyp install --fallback-to-build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Daninet/node-gdi"
+  },
+  "engines": {
+    "node": ">=8.4.0"
+  },
+  "author": "Dani Biró <danibiro93@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Daninet/node-gdi/issues"
+  },
+  "homepage": "https://github.com/Daninet/node-gdi",
+  "dependencies": {
+    "node-pre-gyp": "^0.10.3"
+  },
+  "devDependencies": {
+    "segfault-handler": "^1.0.1"
+  },
+  "binary": {
+    "module_name": "gdi",
+    "module_path": "./lib/binding/napi-v{napi_build_version}",
+    "remote_path": "./{module_name}/v{version}/{configuration}/",
+    "package_name": "{platform}-{arch}-napi-v{napi_build_version}.tar.gz",
+    "host": "https://your_module.s3-us-west-1.amazonaws.com",
+    "napi_versions": [
+      3
+    ]
+  }
+}

@@ -37,22 +37,18 @@
     "node-pre-gyp": "^0.10.3"
   },
   "devDependencies": {
-    "segfault-handler": "^1.0.1",
+    "aws-sdk": "^2.289.0",
     "eslint": "^5.3.0",
     "eslint-config-standard": "^11.0.0",
     "eslint-plugin-import": "^2.11.0",
     "eslint-plugin-node": "^7.0.1",
     "eslint-plugin-promise": "^3.7.0",
-    "eslint-plugin-standard": "^3.1.0"
+    "eslint-plugin-standard": "^3.1.0",
+    "segfault-handler": "^1.0.1"
   },
   "binary": {
     "module_name": "gdi",
-    "module_path": "./lib/binding/napi-v{napi_build_version}",
-    "remote_path": "./{module_name}/v{version}/{configuration}/",
-    "package_name": "{platform}-{arch}-napi-v{napi_build_version}.tar.gz",
-    "host": "https://your_module.s3-us-west-1.amazonaws.com",
-    "napi_versions": [
-      3
-    ]
+    "module_path": "./lib/binding/",
+    "host": "https://node-gdi.s3-eu-central-1.amazonaws.com/"
   }
 }

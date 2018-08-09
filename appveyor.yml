@@ -1,6 +1,10 @@
 os: Visual Studio 2015
 
 environment:
+  node_pre_gyp_accessKeyId:
+    secure: IAy8goREssK8/Lxj7sGTBTPuVYq+UQOjg1BloxR7VaA=
+  node_pre_gyp_secretAccessKey:
+    secure: Hceud2JsCah/e7u67V+S9io4SEiHqAtZ/XVmDNmEBFniOSYXUzVPKzdKTRKHWlOO
   matrix:
     - nodejs_version: 10
 
@@ -22,6 +26,7 @@ install:
   - IF /I "%PLATFORM%" == "x64" CALL "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
   - IF /I "%PLATFORM%" == "x86" CALL "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86
   - npm install
+  - node-pre-gyp package publish
 
 build: off
 test: off

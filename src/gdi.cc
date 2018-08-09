@@ -21,17 +21,6 @@ napi_env env_global;
 
 Bitmap *screen_buffer;
 
-
-bool runned = false;
-
-// napi_value MoveTo(napi_env env, napi_callback_info info) {
-//   size_t argsLength = 2;
-//   napi_value args[2];
-//   napi_get_cb_info(env, info, &argsLength, args, NULL, 0);
-//   HDC hdc;
-//   MoveToEx(hdc, x, y, NULL);
-// }
-
 HDC hdc_global;
 
 HWND hwnd;
@@ -43,7 +32,6 @@ Font *current_font;
 StringFormat *current_stringformat;
 
 napi_value run_paint_op(napi_env env, napi_value op) {
-  // printf("running paing op");
   napi_value val;
   assert(napi_get_element(env, op, 0, &val) == napi_ok);
 
@@ -66,9 +54,6 @@ napi_value run_paint_op(napi_env env, napi_value op) {
       assert(napi_get_value_uint32(env, val, &col[i]) == napi_ok);
     }
     HPEN hPen = CreatePen(PS_SOLID, 1, RGB(col[0], col[1], col[2]));
-    // SelectObject(hdc_global, hPen);
-    // SetDCPenColor(hdc_global, RGB(col[0], col[1], col[2]));
-    // SetTextColor(hdc_global, RGB(col[0], col[1], col[2]));
     current_pen->SetColor(Color(col[3], col[0], col[1], col[2]));
   } else if (opcode == 3) {
     double coord[4];
@@ -202,8 +187,7 @@ napi_value run_paint_op(napi_env env, napi_value op) {
       assert(napi_get_element(env, op, i + 1, &val) == napi_ok);
       assert(napi_get_value_uint32(env, val, &col[i]) == napi_ok);
     }
-    // SetBkMode(hdc_global, OPAQUE);
-    // SetBkColor(hdc_global, RGB(col[0], col[1], col[2]));
+
     delete current_brush;
     current_brush = new SolidBrush(Color(col[3], col[0], col[1], col[2]));
   } else if (opcode == 8) {

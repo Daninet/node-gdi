@@ -10,8 +10,20 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Daninet/node-gdi"
+    "url": "git+https://github.com/Daninet/node-gdi.git"
   },
+  "keywords": [
+    "gdi",
+    "ui",
+    "windows",
+    "bindings",
+    "api",
+    "binding",
+    "n-api",
+    "napi",
+    "window",
+    "gui"
+  ],
   "engines": {
     "node": ">=8.4.0"
   },
@@ -25,7 +37,13 @@
     "node-pre-gyp": "^0.10.3"
   },
   "devDependencies": {
-    "segfault-handler": "^1.0.1"
+    "segfault-handler": "^1.0.1",
+    "eslint": "^5.3.0",
+    "eslint-config-standard": "^11.0.0",
+    "eslint-plugin-import": "^2.11.0",
+    "eslint-plugin-node": "^7.0.1",
+    "eslint-plugin-promise": "^3.7.0",
+    "eslint-plugin-standard": "^3.1.0"
   },
   "binary": {
     "module_name": "gdi",

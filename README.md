@@ -1,6 +1,8 @@
 # node-gdi
 Node.js bindings to Windows GDI (graphics device interface)
 
+Uses GDI for text rendering and GDI+ for graphics elements. 
+
 Alpha version, development in progress...
 
 Install
@@ -141,6 +143,10 @@ window.onMouseMove(cb)
 
 
 window.onMouseUp(cb)
+-----
+
+
+window.onMouseWheel(cb)
 -----
 
 

@@ -652,7 +652,7 @@ napi_value run_paint_op(napi_env env, napi_value op) {
   return 0;
 }
 
-napi_value run_paint_tasks(napi_env env, napi_callback_info info) {
+napi_value API_RunPaintTasks(napi_env env, napi_callback_info info) {
   size_t argsLength = 1;
   napi_value args[1];
   assert(napi_get_cb_info(env, info, &argsLength, args, NULL, 0) == napi_ok);
@@ -673,12 +673,12 @@ napi_value run_paint_tasks(napi_env env, napi_callback_info info) {
   return ret;
 }
 
-napi_value create_paint_response(napi_env env) {
+napi_value CreatePaintResponse(napi_env env) {
   napi_value response_object;
   assert(napi_create_object(env, &response_object) == napi_ok);
 
   napi_value runFunc;
-  assert(napi_create_function(env, NULL, 0, run_paint_tasks, NULL, &runFunc) == napi_ok);
+  assert(napi_create_function(env, NULL, 0, API_RunPaintTasks, NULL, &runFunc) == napi_ok);
   assert(napi_set_named_property(env, response_object, "run", runFunc) == napi_ok);
 
   return response_object;
@@ -721,7 +721,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
   napi_value result;
   assert(napi_call_function(env_global, null, cb_wndProc_val, 1, &response_object, &result) == napi_ok);
 
-  napi_value paint_response = create_paint_response(env_global);
+  napi_value paint_response = CreatePaintResponse(env_global);
 
   bool shouldClose;
   assert(napi_get_value_bool(env_global, result, &shouldClose) == napi_ok);
@@ -822,7 +822,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved) {
 }
 
 
-napi_value SetPaintCallback(napi_env env, napi_callback_info info) {
+napi_value API_SetPaintCallback(napi_env env, napi_callback_info info) {
   env_global = env;
   size_t argc = 1;
   napi_value args[1];
@@ -834,7 +834,7 @@ napi_value SetPaintCallback(napi_env env, napi_callback_info info) {
   return 0;
 }
 
-napi_value SetWinProcCallback(napi_env env, napi_callback_info info) {
+napi_value API_SetWinProcCallback(napi_env env, napi_callback_info info) {
   env_global = env;
 
   size_t argc = 1;
@@ -848,7 +848,7 @@ napi_value SetWinProcCallback(napi_env env, napi_callback_info info) {
   return 0;
 }
 
-napi_value StartWindow(napi_env env, napi_callback_info info) {
+napi_value API_StartWindow(napi_env env, napi_callback_info info) {
   size_t argsLength = 1;
   napi_value args[1];
   assert(napi_get_cb_info(env, info, &argsLength, args, NULL, 0) == napi_ok);
@@ -915,7 +915,7 @@ napi_value StartWindow(napi_env env, napi_callback_info info) {
   return 0;
 }
 
-napi_value MessageBox(napi_env env, napi_callback_info info) {
+napi_value API_MessageBox(napi_env env, napi_callback_info info) {
   size_t argsLength = 3;
   napi_value args[3];
   assert(napi_get_cb_info(env, info, &argsLength, args, NULL, 0) == napi_ok);
@@ -929,7 +929,7 @@ napi_value MessageBox(napi_env env, napi_callback_info info) {
   return 0;
 }
 
-napi_value SetWindowTitle(napi_env env, napi_callback_info info) {
+napi_value API_SetWindowTitle(napi_env env, napi_callback_info info) {
   size_t argsLength = 1;
   napi_value args[1];
   assert(napi_get_cb_info(env, info, &argsLength, args, NULL, 0) == napi_ok);
@@ -942,7 +942,7 @@ napi_value SetWindowTitle(napi_env env, napi_callback_info info) {
   return 0;
 }
 
-napi_value SetWindowRect(napi_env env, napi_callback_info info) {
+napi_value API_SetWindowRect(napi_env env, napi_callback_info info) {
   size_t argsLength = 4;
   napi_value args[4];
   assert(napi_get_cb_info(env, info, &argsLength, args, NULL, 0) == napi_ok);
@@ -961,7 +961,7 @@ napi_value SetWindowRect(napi_env env, napi_callback_info info) {
   return 0;
 }
 
-napi_value GetWindowRect(napi_env env, napi_callback_info info) {
+napi_value API_GetWindowRect(napi_env env, napi_callback_info info) {
   RECT rect;
   GetWindowRect(hwnd, &rect);
 
@@ -980,7 +980,50 @@ napi_value GetWindowRect(napi_env env, napi_callback_info info) {
   return ret;
 }
 
-napi_value ShowWindow(napi_env env, napi_callback_info info) {
+napi_value API_SetClipboard(napi_env env, napi_callback_info info) {
+  size_t argsLength = 1;
+  napi_value args[1];
+  assert(napi_get_cb_info(env, info, &argsLength, args, NULL, 0) == napi_ok);
+
+  char16_t tmp[1];
+  size_t len;
+
+  assert(napi_get_value_string_utf16(env, args[0], tmp, 0, &len) == napi_ok);
+
+  if (OpenClipboard(NULL)) {
+    EmptyClipboard();
+    size_t size = (len + 1) * sizeof(char16_t);
+    HGLOBAL hClipboardData = GlobalAlloc(NULL, size);
+    if (hClipboardData) {
+      char16_t* pchData = (char16_t*) GlobalLock(hClipboardData);
+      if (pchData) {
+        assert(napi_get_value_string_utf16(env, args[0], pchData, size, &len) == napi_ok);
+        GlobalUnlock(hClipboardData);
+        SetClipboardData(CF_UNICODETEXT, hClipboardData);
+      }
+    }
+    CloseClipboard();
+  }
+  return 0;
+}
+
+napi_value API_GetClipboard(napi_env env, napi_callback_info info) {
+  napi_value str;
+  if (OpenClipboard(NULL)) {
+    HANDLE hClipboardData = GetClipboardData(CF_UNICODETEXT);
+    if (hClipboardData){
+      char16_t *pchData = (char16_t*) GlobalLock(hClipboardData);
+      if (pchData){
+        assert(napi_create_string_utf16(env, pchData, NAPI_AUTO_LENGTH, &str) == napi_ok);
+        GlobalUnlock(hClipboardData);
+      }
+    }
+    CloseClipboard();
+  }
+  return str;
+}
+
+napi_value API_ShowWindow(napi_env env, napi_callback_info info) {
   size_t argsLength = 1;
   napi_value args[1];
   assert(napi_get_cb_info(env, info, &argsLength, args, NULL, 0) == napi_ok);
@@ -992,18 +1035,18 @@ napi_value ShowWindow(napi_env env, napi_callback_info info) {
   return 0;
 }
 
-napi_value CloseWindowFunc(napi_env env, napi_callback_info info) {
+napi_value API_CloseWindowFunc(napi_env env, napi_callback_info info) {
   DestroyWindow(hwnd);
   UnregisterClass((LPCWSTR)g_szClassName, NULL);
   return 0;
 }
 
-napi_value Repaint(napi_env env, napi_callback_info info) {
+napi_value API_Repaint(napi_env env, napi_callback_info info) {
   InvalidateRect(hwnd, NULL, NULL);
   return 0;
 }
 
-napi_value SetCursorIcon(napi_env env, napi_callback_info info) {
+napi_value API_SetCursorIcon(napi_env env, napi_callback_info info) {
   size_t argsLength = 1;
   napi_value args[1];
   assert(napi_get_cb_info(env, info, &argsLength, args, NULL, 0) == napi_ok);
@@ -1017,7 +1060,7 @@ napi_value SetCursorIcon(napi_env env, napi_callback_info info) {
   return 0;
 }
 
-napi_value ProcessMessages(napi_env env, napi_callback_info info) {
+napi_value API_ProcessMessages(napi_env env, napi_callback_info info) {
   MSG msg;
 
   while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
@@ -1028,7 +1071,7 @@ napi_value ProcessMessages(napi_env env, napi_callback_info info) {
   return 0;
 }
 
-napi_value ExitFunc(napi_env env, napi_callback_info info) {
+napi_value API_ExitFunc(napi_env env, napi_callback_info info) {
   CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)FreeLibrary, &__ImageBase, 0, NULL);
   return 0;
 }
@@ -1041,19 +1084,21 @@ void AddFunc(napi_env env, napi_value exports, napi_callback cb, const char* utf
 }
 
 napi_value Init(napi_env env, napi_value exports) {
-  AddFunc(env, exports, StartWindow, "createWindow");
-  AddFunc(env, exports, ExitFunc, "exit");
-  AddFunc(env, exports, ProcessMessages, "processMessages");
-  AddFunc(env, exports, SetWinProcCallback, "setWinProcCallback");
-  AddFunc(env, exports, SetPaintCallback, "setPaintCallback");
-  AddFunc(env, exports, MessageBox, "messageBox");
-  AddFunc(env, exports, SetWindowRect, "setWindowRect");
-  AddFunc(env, exports, GetWindowRect, "getWindowRect");
-  AddFunc(env, exports, ShowWindow, "showWindow");
-  AddFunc(env, exports, SetCursorIcon, "setCursor");
-  AddFunc(env, exports, SetWindowTitle, "setWindowTitle");
-  AddFunc(env, exports, CloseWindowFunc, "closeWindow");
-  AddFunc(env, exports, Repaint, "repaint");
+  AddFunc(env, exports, API_StartWindow, "createWindow");
+  AddFunc(env, exports, API_ExitFunc, "exit");
+  AddFunc(env, exports, API_ProcessMessages, "processMessages");
+  AddFunc(env, exports, API_SetWinProcCallback, "setWinProcCallback");
+  AddFunc(env, exports, API_SetPaintCallback, "setPaintCallback");
+  AddFunc(env, exports, API_MessageBox, "messageBox");
+  AddFunc(env, exports, API_SetWindowRect, "setWindowRect");
+  AddFunc(env, exports, API_GetWindowRect, "getWindowRect");
+  AddFunc(env, exports, API_ShowWindow, "showWindow");
+  AddFunc(env, exports, API_SetCursorIcon, "setCursor");
+  AddFunc(env, exports, API_SetWindowTitle, "setWindowTitle");
+  AddFunc(env, exports, API_CloseWindowFunc, "closeWindow");
+  AddFunc(env, exports, API_Repaint, "repaint");
+  AddFunc(env, exports, API_SetClipboard, "setClipboard");
+  AddFunc(env, exports, API_GetClipboard, "getClipboard");
 
   return exports;
 }

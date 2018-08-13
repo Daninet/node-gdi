@@ -86,6 +86,10 @@ window.close()
 -----
 
 
+window.getClipboard()
+-----
+
+
 window.getPosition()
 -----
 
@@ -163,6 +167,10 @@ window.repaint()
 
 
 window.restore()
+-----
+
+
+window.setClipboard(str)
 -----
 
 

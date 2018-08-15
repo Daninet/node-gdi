@@ -202,7 +202,6 @@ napi_value run_paint_op(napi_env env, napi_value op) {
 
     delete current_brush;
     current_brush = new SolidBrush(Color(col[3], col[0], col[1], col[2]));
-    SetBkMode(hdc_global, TRANSPARENT);
     SetBkColor(hdc_global, RGB(col[3], col[0], col[1]));
   } else if (opcode == 8) {
     uint32_t flags;
@@ -418,10 +417,18 @@ napi_value run_paint_op(napi_env env, napi_value op) {
 
     if (destRect[2] < 0) {
       destRect[2] = image.GetWidth();
+      if (destRect[3] > 0) {
+        double ratio = (double)destRect[3] / image.GetHeight();
+        destRect[2] *= ratio;
+      }
     }
 
     if (destRect[3] < 0) {
       destRect[3] = image.GetHeight();
+      if (destRect[2] > 0) {
+        double ratio = (double)destRect[2] / image.GetWidth();
+        destRect[3] *= ratio;
+      }
     }
 
     int32_t srcRect[4];
@@ -433,10 +440,18 @@ napi_value run_paint_op(napi_env env, napi_value op) {
 
     if (srcRect[2] < 0) {
       srcRect[2] = image.GetWidth();
+      if (srcRect[3] > 0) {
+        double ratio = (double)srcRect[3] / image.GetHeight();
+        srcRect[2] *= ratio;
+      }
     }
 
     if (srcRect[3] < 0) {
       srcRect[3] = image.GetHeight();
+      if (srcRect[2] > 0) {
+        double ratio = (double)srcRect[2] / image.GetWidth();
+        srcRect[3] *= ratio;
+      }
     }
 
     Rect dest(destRect[0], destRect[1], destRect[2], destRect[3]);
@@ -762,10 +777,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       }
       screen_buffer = NULL;
       break;
+    // case WM_NCPAINT:
+    //   hDC = GetDCEx(hwnd, (HRGN)wParam, DCX_WINDOW | DCX_INTERSECTRGN);
+    //   printf("test");
+    //   SetDCBrushColor(hDC, RGB(255, 0, 0));
+    //   Rectangle(hDC, 0, 0, 1000, 1000);
+    //   ReleaseDC(hwnd, hDC);
+    //   break;
     case WM_PAINT:
       hDC = BeginPaint(hwnd, &Ps);
       SetGraphicsMode(hDC, GM_ADVANCED);
       hdc_global = CreateCompatibleDC(hDC);
+      SetBkMode(hdc_global, TRANSPARENT);
 
       if (screen_buffer == NULL) {
         screen_buffer = CreateCompatibleBitmap(hDC, rect.right - rect.left, rect.bottom - rect.top);
@@ -875,6 +898,10 @@ napi_value API_StartWindow(napi_env env, napi_callback_info info) {
   assert(napi_get_named_property(env, obj, "b", &val) == napi_ok);
   assert(napi_get_value_uint32(env, val, &bg_b) == napi_ok);
 
+  bool showTitleBar;
+  assert(napi_get_named_property(env, obj, "showTitleBar", &val) == napi_ok);
+  assert(napi_get_value_bool(env, val, &showTitleBar) == napi_ok);
+
   WNDCLASSEX wc;
 
   wc.cbSize        = sizeof(WNDCLASSEX);
@@ -896,10 +923,10 @@ napi_value API_StartWindow(napi_env env, napi_callback_info info) {
   }
 
   hwnd = CreateWindowExW(
-    WS_EX_CLIENTEDGE,
+    0,
     (LPCWSTR)g_szClassName,
     (LPCWSTR)window_title,
-    WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+    showTitleBar ? WS_OVERLAPPEDWINDOW | WS_VISIBLE : WS_POPUP | WS_SIZEBOX,
     CW_USEDEFAULT, CW_USEDEFAULT, window_width, window_height,
     NULL, NULL, g_hmodDLL, NULL
   );

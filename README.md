@@ -11,10 +11,15 @@ Install
 npm i gdi
 ```
 
+Usage
+=======
+
+Some examples can be found in the examples directory.
+
 Example
 =======
 
-[![](examples/simple.png)](examples/simple.js)
+[![](examples/01-simple.png)](examples/01-simple.js)
 
 ```javascript
 const GDILib = require('gdi');

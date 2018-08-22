@@ -79,6 +79,15 @@ GDILib methods
 
 GDILib.init(options)
 -----
+```
+options = {
+  title: 'GDI Window',
+  width: 600,
+  height: 400,
+  backgroundColor: [39, 40, 34],
+  showTitleBar: true
+};
+```
 
 
 

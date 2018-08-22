@@ -29,6 +29,6 @@ window.onPaint(g => {
 });
 
 setInterval(() => {
-  angle += 1;
+  angle = (angle + 1) % 360;
   window.repaint();
 }, 30);

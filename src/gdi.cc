@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <vector>
 #include <windows.h>
+#include <Windowsx.h>
 #include <objidl.h>
 #define GDIPVER 0x0110
 #include <gdiplus.h>
@@ -24,12 +25,14 @@ HBITMAP screen_buffer;
 HDC hdc_global;
 
 HWND hwnd;
+HFONT font = NULL;
 
 Graphics *current_graphics;
 Pen *current_pen;
 Brush *current_brush;
-Font *current_font;
 StringFormat *current_stringformat;
+
+bool showTitleBar;
 
 napi_value run_paint_op(napi_env env, napi_value op) {
   napi_value val;
@@ -53,8 +56,8 @@ napi_value run_paint_op(napi_env env, napi_value op) {
       assert(napi_get_element(env, op, i + 1, &val) == napi_ok);
       assert(napi_get_value_uint32(env, val, &col[i]) == napi_ok);
     }
-    HPEN hPen = CreatePen(PS_SOLID, 1, RGB(col[0], col[1], col[2]));
-    SelectObject(hdc_global, hPen);
+    // HPEN hPen = CreatePen(PS_SOLID, 1, RGB(col[0], col[1], col[2]));
+    // SelectObject(hdc_global, hPen);
     SetDCPenColor(hdc_global, RGB(col[0], col[1], col[2]));
     SetTextColor(hdc_global, RGB(col[0], col[1], col[2]));
     current_pen->SetColor(Color(col[3], col[0], col[1], col[2]));
@@ -116,14 +119,13 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(napi_get_value_string_utf16(env, val, str, 4096, &len) == napi_ok);
   
     if (coord[2] < 0 || coord[3] < 0) {
-      TextOutW(hdc_global, coord[0], coord[1], (LPCWSTR)str, len);
-      
+      TextOutW(hdc_global, (int32_t)coord[0], (int32_t)coord[1], (LPCWSTR)str, len);
     //   current_graphics->DrawString((WCHAR*)str, len, current_font, PointF((REAL)coord[0], (REAL)coord[1]), current_stringformat, current_brush);
     } else {
       uint32_t options;
       assert(napi_get_element(env, op, 5, &val) == napi_ok);
       assert(napi_get_value_uint32(env, val, &options) == napi_ok);
-      RECT rect = { coord[0], coord[1], coord[0] + coord[2], coord[1] + coord[3]};
+      RECT rect = { (int32_t)coord[0], (int32_t)coord[1], (int32_t)(coord[0] + coord[2]), (int32_t)(coord[1] + coord[3]) };
 
       DrawTextExW(hdc_global, (LPWSTR)str, len, &rect, options, NULL);
     //   current_graphics->DrawString((WCHAR*)str, len, current_font, RectF((REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]), current_stringformat, current_brush);
@@ -187,11 +189,13 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(napi_get_element(env, op, 6, &val) == napi_ok);
     assert(napi_get_value_bool(env, val, &strikeout) == napi_ok);
 
-    HFONT font = CreateFontW(font_size, 0, 0, 0, font_weight, italic, underline, strikeout, DEFAULT_CHARSET,
+    if (font != NULL) {
+      DeleteObject(font);
+    }
+
+    font = CreateFontW(font_size, 0, 0, 0, font_weight, italic, underline, strikeout, DEFAULT_CHARSET,
       OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, FIXED_PITCH, (LPCWSTR)font_name);
     SelectObject(hdc_global, font);
-    delete current_font;
-    current_font = new Font(hdc_global, font);
   } else if (opcode == 7) {
     uint32_t col[4];
 
@@ -419,7 +423,7 @@ napi_value run_paint_op(napi_env env, napi_value op) {
       destRect[2] = image.GetWidth();
       if (destRect[3] > 0) {
         double ratio = (double)destRect[3] / image.GetHeight();
-        destRect[2] *= ratio;
+        destRect[2] = (int32_t)(destRect[2] * ratio);
       }
     }
 
@@ -427,7 +431,7 @@ napi_value run_paint_op(napi_env env, napi_value op) {
       destRect[3] = image.GetHeight();
       if (destRect[2] > 0) {
         double ratio = (double)destRect[2] / image.GetWidth();
-        destRect[3] *= ratio;
+        destRect[3] = (int32_t)(destRect[3] * ratio);
       }
     }
 
@@ -442,7 +446,7 @@ napi_value run_paint_op(napi_env env, napi_value op) {
       srcRect[2] = image.GetWidth();
       if (srcRect[3] > 0) {
         double ratio = (double)srcRect[3] / image.GetHeight();
-        srcRect[2] *= ratio;
+        srcRect[2] = (int32_t)(srcRect[2] * ratio);
       }
     }
 
@@ -450,12 +454,13 @@ napi_value run_paint_op(napi_env env, napi_value op) {
       srcRect[3] = image.GetHeight();
       if (srcRect[2] > 0) {
         double ratio = (double)srcRect[2] / image.GetWidth();
-        srcRect[3] *= ratio;
+        srcRect[3] = (int32_t)(srcRect[3] * ratio);
       }
     }
 
     Rect dest(destRect[0], destRect[1], destRect[2], destRect[3]);
     current_graphics->DrawImage(&image, dest, srcRect[0], srcRect[1], srcRect[2], srcRect[3], UnitPixel, NULL, NULL, NULL);
+    istream->Release();
   } else if (opcode == 19) {
     napi_value arr;
     assert(napi_get_element(env, op, 1, &arr) == napi_ok);
@@ -743,17 +748,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
   HDC hDC;
   PAINTSTRUCT Ps;
-  char szTitle[] = "These are the dimensions of your client area:";
-  // HFONT g_hfFont = GetStockObject(DEFAULT_GUI_FONT);
-  // HFONT g_hfFont = CreateFont(14,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,FIXED_PITCH,TEXT("Consolas"));
 
   RECT rect;
   GetClientRect(hwnd, &rect);
 
+  RECT windowRect;
+  GetWindowRect(hwnd, &windowRect);
+
   napi_value paint_result;
 
-  HBITMAP bmp;
   HBITMAP hbmOld;
+
+  int r,x,y;
 
   switch(msg) {
     case WM_CLOSE:
@@ -800,7 +806,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       current_graphics->SetCompositingQuality(CompositingQualityHighQuality);
       current_graphics->SetSmoothingMode(SmoothingModeAntiAlias);
       current_pen = new Pen(Color(255, 0, 0, 0));
-      current_font = new Font(hDC);
+      // current_font = new Font(hDC);
       current_brush = new SolidBrush(Color(255, 0, 0, 0));
       current_stringformat = new StringFormat(0);
 
@@ -815,16 +821,44 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       // delete screen_graphics;
       delete current_graphics;
       delete current_pen;
-      delete current_font;
+      // delete current_font;
       delete current_brush;
       delete current_stringformat;
 
       SelectObject(hdc_global, hbmOld);
-      DeleteObject(bmp);
+      DeleteObject(hbmOld);
       DeleteDC(hdc_global);
 
       EndPaint(hwnd, &Ps);
       break;
+    case WM_NCHITTEST:
+      if (showTitleBar) {
+        return DefWindowProc(hwnd, msg, wParam, lParam);
+      }
+
+      r = HTCLIENT;
+      x = GET_X_LPARAM(lParam);
+      y = GET_Y_LPARAM(lParam);
+      if (windowRect.bottom - y < 5) {
+        if (x - windowRect.left < 5)
+          r = HTBOTTOMLEFT;
+        else if (windowRect.right - x < 5)
+          r = HTBOTTOMRIGHT;
+        else
+          r = HTBOTTOM;
+      } else if (y - windowRect.top < 5) {
+        if (x - windowRect.left < 5)
+          r = HTTOPLEFT;
+        else if (windowRect.right - x < 5)
+          r = HTTOPRIGHT;
+        else
+          r = HTTOP;
+      } else if (windowRect.right - x < 5) {
+        r = HTRIGHT;
+      } else if (x - windowRect.left < 5) {
+        r = HTLEFT;
+      }
+      return r;
     default:
       return DefWindowProc(hwnd, msg, wParam, lParam);
   }
@@ -898,7 +932,6 @@ napi_value API_StartWindow(napi_env env, napi_callback_info info) {
   assert(napi_get_named_property(env, obj, "b", &val) == napi_ok);
   assert(napi_get_value_uint32(env, val, &bg_b) == napi_ok);
 
-  bool showTitleBar;
   assert(napi_get_named_property(env, obj, "showTitleBar", &val) == napi_ok);
   assert(napi_get_value_bool(env, val, &showTitleBar) == napi_ok);
 
@@ -926,7 +959,7 @@ napi_value API_StartWindow(napi_env env, napi_callback_info info) {
     0,
     (LPCWSTR)g_szClassName,
     (LPCWSTR)window_title,
-    showTitleBar ? WS_OVERLAPPEDWINDOW | WS_VISIBLE : WS_POPUP | WS_SIZEBOX,
+    showTitleBar ? WS_OVERLAPPEDWINDOW | WS_VISIBLE : WS_POPUP,
     CW_USEDEFAULT, CW_USEDEFAULT, window_width, window_height,
     NULL, NULL, g_hmodDLL, NULL
   );
@@ -997,10 +1030,12 @@ napi_value API_GetWindowRect(napi_env env, napi_callback_info info) {
   napi_value ret_arr[4];
   assert(napi_create_int32(env, rect.left, &ret_arr[0]) == napi_ok);
   assert(napi_create_int32(env, rect.top, &ret_arr[1]) == napi_ok);
-  assert(napi_create_int32(env, rect.right - rect.left, &ret_arr[2]) == napi_ok);
-  assert(napi_create_int32(env, rect.bottom - rect.top, &ret_arr[3]) == napi_ok);
   assert(napi_set_element(env, ret, 0, ret_arr[0]) == napi_ok);
   assert(napi_set_element(env, ret, 1, ret_arr[1]) == napi_ok);
+
+  GetClientRect(hwnd, &rect);
+  assert(napi_create_int32(env, rect.right - 1, &ret_arr[2]) == napi_ok);
+  assert(napi_create_int32(env, rect.bottom - 1, &ret_arr[3]) == napi_ok);
   assert(napi_set_element(env, ret, 2, ret_arr[2]) == napi_ok);
   assert(napi_set_element(env, ret, 3, ret_arr[3]) == napi_ok);
 

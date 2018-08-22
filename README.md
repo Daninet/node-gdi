@@ -1,9 +1,9 @@
 # node-gdi
-Node.js bindings to Windows GDI (graphics device interface)
+Node.js bindings to Windows GDI/GDI+ (graphics device interface)
 
 Uses GDI for text rendering and GDI+ for graphics elements. 
 
-Alpha version, development in progress...
+Beta version, development in progress...
 
 Install
 =======

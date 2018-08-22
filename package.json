@@ -1,7 +1,7 @@
 {
   "name": "gdi",
   "version": "0.1.4",
-  "description": "Node.js bindings to Windows GDI (graphics device interface)",
+  "description": "Node.js bindings to Windows GDI/GDI+ (graphics device interface)",
   "main": "index.js",
   "scripts": {
     "start": "node-gyp configure build && node module.js",
@@ -14,6 +14,7 @@
   },
   "keywords": [
     "gdi",
+    "gdi+",
     "ui",
     "windows",
     "bindings",
@@ -34,17 +35,16 @@
   },
   "homepage": "https://github.com/Daninet/node-gdi",
   "dependencies": {
-    "node-pre-gyp": "^0.10.3"
+    "node-pre-gyp": "^0.11.0"
   },
   "devDependencies": {
-    "aws-sdk": "^2.289.0",
-    "eslint": "^5.3.0",
+    "aws-sdk": "^2.298.0",
+    "eslint": "^5.4.0",
     "eslint-config-standard": "^11.0.0",
-    "eslint-plugin-import": "^2.11.0",
+    "eslint-plugin-import": "^2.14.0",
     "eslint-plugin-node": "^7.0.1",
-    "eslint-plugin-promise": "^3.7.0",
-    "eslint-plugin-standard": "^3.1.0",
-    "segfault-handler": "^1.0.1"
+    "eslint-plugin-promise": "^4.0.0",
+    "eslint-plugin-standard": "^3.1.0"
   },
   "binary": {
     "module_name": "gdi",

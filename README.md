@@ -85,7 +85,8 @@ options = {
   width: 600,
   height: 400,
   backgroundColor: [39, 40, 34],
-  showTitleBar: true
+  frameless: false,
+  titleBarHeight: 0
 };
 ```
 
@@ -138,6 +139,11 @@ window.onClose(cb)
 
 window.onCreate(cb)
 -----
+
+
+window.onCustomMsg(cb)
+-----
+
 
 
 window.onKeyDown(cb)

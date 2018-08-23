@@ -33,6 +33,7 @@ Brush *current_brush;
 StringFormat *current_stringformat;
 
 bool showTitleBar;
+uint32_t titleBarHeight;
 
 napi_value run_paint_op(napi_env env, napi_value op) {
   napi_value val;
@@ -718,33 +719,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
   napi_value response_object;
   assert(napi_create_object(env_global, &response_object) == napi_ok);
 
-  napi_value n_msg;
-  assert(napi_create_uint32(env_global, msg, &n_msg) == napi_ok);
-  assert(napi_set_named_property(env_global, response_object, "msg", n_msg) == napi_ok);
-
-  napi_value n_lwParam;
-  assert(napi_create_uint32(env_global, LOWORD(wParam), &n_lwParam) == napi_ok);
-  assert(napi_set_named_property(env_global, response_object, "lwParam", n_lwParam) == napi_ok);
-
-  napi_value n_hwParam;
-  assert(napi_create_uint32(env_global, HIWORD(wParam), &n_hwParam) == napi_ok);
-  assert(napi_set_named_property(env_global, response_object, "hwParam", n_hwParam) == napi_ok);
-
-  napi_value n_llParam;
-  assert(napi_create_uint32(env_global, LOWORD(lParam), &n_llParam) == napi_ok);
-  assert(napi_set_named_property(env_global, response_object, "llParam", n_llParam) == napi_ok);
-
-  napi_value n_hlParam;
-  assert(napi_create_uint32(env_global, HIWORD(lParam), &n_hlParam) == napi_ok);
-  assert(napi_set_named_property(env_global, response_object, "hlParam", n_hlParam) == napi_ok);
-
-  napi_value result;
-  assert(napi_call_function(env_global, null, cb_wndProc_val, 1, &response_object, &result) == napi_ok);
-
   napi_value paint_response = CreatePaintResponse(env_global);
-
-  bool shouldClose;
-  assert(napi_get_value_bool(env_global, result, &shouldClose) == napi_ok);
 
   HDC hDC;
   PAINTSTRUCT Ps;
@@ -759,7 +734,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
   HBITMAP hbmOld;
 
-  int r,x,y;
+  LRESULT r = 0;
+  int32_t x, y;
+
+  POINT p;
+
+  LPARAM jsLParam = lParam;
 
   switch(msg) {
     case WM_CLOSE:
@@ -783,6 +763,22 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       }
       screen_buffer = NULL;
       break;
+    
+    case WM_NCLBUTTONUP:
+    case WM_NCRBUTTONUP:
+    case WM_NCMBUTTONUP:
+    case WM_NCXBUTTONUP:
+    case WM_NCLBUTTONDOWN:
+    case WM_NCRBUTTONDOWN:
+    case WM_NCMBUTTONDOWN:
+    case WM_NCXBUTTONDOWN:
+    case WM_NCMOUSEMOVE:
+      p = { LOWORD(lParam), HIWORD(lParam) };
+      ScreenToClient(hwnd, &p);
+      jsLParam = MAKELPARAM(p.x, p.y);
+      r = DefWindowProc(hwnd, msg, wParam, lParam);
+      break;
+
     // case WM_NCPAINT:
     //   hDC = GetDCEx(hwnd, (HRGN)wParam, DCX_WINDOW | DCX_INTERSECTRGN);
     //   printf("test");
@@ -833,7 +829,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       break;
     case WM_NCHITTEST:
       if (showTitleBar) {
-        return DefWindowProc(hwnd, msg, wParam, lParam);
+        r = DefWindowProc(hwnd, msg, wParam, lParam);
       }
 
       r = HTCLIENT;
@@ -858,11 +854,51 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       } else if (x - windowRect.left < 5) {
         r = HTLEFT;
       }
-      return r;
+
+      if (titleBarHeight > 0 && y - windowRect.top < (int32_t)titleBarHeight) {
+        r = HTCAPTION;
+      }
+      break;
     default:
-      return DefWindowProc(hwnd, msg, wParam, lParam);
+      r = DefWindowProc(hwnd, msg, wParam, lParam);
   }
-  return 0;
+
+  napi_value n_msg;
+  assert(napi_create_uint32(env_global, msg, &n_msg) == napi_ok);
+  assert(napi_set_named_property(env_global, response_object, "msg", n_msg) == napi_ok);
+
+  napi_value n_lwParam;
+  assert(napi_create_uint32(env_global, LOWORD(wParam), &n_lwParam) == napi_ok);
+  assert(napi_set_named_property(env_global, response_object, "lwParam", n_lwParam) == napi_ok);
+
+  napi_value n_hwParam;
+  assert(napi_create_uint32(env_global, HIWORD(wParam), &n_hwParam) == napi_ok);
+  assert(napi_set_named_property(env_global, response_object, "hwParam", n_hwParam) == napi_ok);
+
+  napi_value n_llParam;
+  assert(napi_create_uint32(env_global, LOWORD(jsLParam), &n_llParam) == napi_ok);
+  assert(napi_set_named_property(env_global, response_object, "llParam", n_llParam) == napi_ok);
+
+  napi_value n_hlParam;
+  assert(napi_create_uint32(env_global, HIWORD(jsLParam), &n_hlParam) == napi_ok);
+  assert(napi_set_named_property(env_global, response_object, "hlParam", n_hlParam) == napi_ok);
+
+  napi_value result;
+  assert(napi_call_function(env_global, null, cb_wndProc_val, 1, &response_object, &result) == napi_ok);
+
+  napi_valuetype resultType;
+  assert(napi_typeof(env_global, result, &resultType) == napi_ok);
+
+  int32_t wndProcResult;
+  if (resultType == napi_number) {
+    assert(napi_get_value_int32(env_global, result, &wndProcResult) == napi_ok);
+  }
+
+  if (resultType != napi_undefined) {
+    return wndProcResult;
+  }
+
+  return r;
 }
 
 ULONG_PTR gdiplusToken;
@@ -934,6 +970,9 @@ napi_value API_StartWindow(napi_env env, napi_callback_info info) {
 
   assert(napi_get_named_property(env, obj, "showTitleBar", &val) == napi_ok);
   assert(napi_get_value_bool(env, val, &showTitleBar) == napi_ok);
+
+  assert(napi_get_named_property(env, obj, "titleBarHeight", &val) == napi_ok);
+  assert(napi_get_value_uint32(env, val, &titleBarHeight) == napi_ok);
 
   WNDCLASSEX wc;
 

@@ -1,6 +1,6 @@
 {
   "name": "gdi",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Node.js bindings to Windows GDI/GDI+ (graphics device interface)",
   "main": "index.js",
   "scripts": {

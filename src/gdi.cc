@@ -827,36 +827,35 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
       EndPaint(hwnd, &Ps);
       break;
+
     case WM_NCHITTEST:
       if (showTitleBar) {
         r = DefWindowProc(hwnd, msg, wParam, lParam);
-      }
-
-      r = HTCLIENT;
-      x = GET_X_LPARAM(lParam);
-      y = GET_Y_LPARAM(lParam);
-      if (windowRect.bottom - y < 5) {
-        if (x - windowRect.left < 5)
-          r = HTBOTTOMLEFT;
-        else if (windowRect.right - x < 5)
-          r = HTBOTTOMRIGHT;
-        else
-          r = HTBOTTOM;
-      } else if (y - windowRect.top < 5) {
-        if (x - windowRect.left < 5)
-          r = HTTOPLEFT;
-        else if (windowRect.right - x < 5)
-          r = HTTOPRIGHT;
-        else
-          r = HTTOP;
-      } else if (windowRect.right - x < 5) {
-        r = HTRIGHT;
-      } else if (x - windowRect.left < 5) {
-        r = HTLEFT;
-      }
-
-      if (titleBarHeight > 0 && y - windowRect.top < (int32_t)titleBarHeight) {
-        r = HTCAPTION;
+      } else {
+        r = HTCLIENT;
+        x = GET_X_LPARAM(lParam);
+        y = GET_Y_LPARAM(lParam);
+        if (windowRect.bottom - y < 5) {
+          if (x - windowRect.left < 5)
+            r = HTBOTTOMLEFT;
+          else if (windowRect.right - x < 5)
+            r = HTBOTTOMRIGHT;
+          else
+            r = HTBOTTOM;
+        } else if (y - windowRect.top < 5) {
+          if (x - windowRect.left < 5)
+            r = HTTOPLEFT;
+          else if (windowRect.right - x < 5)
+            r = HTTOPRIGHT;
+          else
+            r = HTTOP;
+        } else if (windowRect.right - x < 5) {
+          r = HTRIGHT;
+        } else if (x - windowRect.left < 5) {
+          r = HTLEFT;
+        } else if (titleBarHeight > 0 && y - windowRect.top < (int32_t)titleBarHeight) {
+          r = HTCAPTION;
+        }
       }
       break;
     default:

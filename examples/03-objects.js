@@ -1,11 +1,11 @@
 const GDILib = require('../');
-const window = GDILib.init({ title: 'GDILib - Example 3.', width: 600, height: 380 });
+const window = GDILib.init({ title: 'GDILib - Example 3.', width: 600, height: 420 });
 
 window.onPaint(g => {
   g.clear(39, 40, 34);
   g.penColor(255, 255, 255);
   g.brushColor(255, 255, 255);
-  g.font('Sergoe UI', 16, 400);
+  g.font('Sergoe UI', 14, 400);
 
   g.text(40, 20, 'Line:');
   g.line(40, 50, 140, 50);

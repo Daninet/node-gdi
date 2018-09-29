@@ -24,7 +24,7 @@ window.onPaint(g => {
   // draw text
   g
     .penColor(255, 255, 255)
-    .font('Sergoe UI', 18, 400)
+    .font('Sergoe UI', 16, 400)
     .text(50, 30, 'Hello world from GDILib!');
 });
 

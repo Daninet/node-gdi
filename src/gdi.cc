@@ -9,6 +9,7 @@
 #define GDIPVER 0x0110
 #include <gdiplus.h>
 #include <shlwapi.h>
+#include <shellscalingapi.h>
 using namespace Gdiplus;
 
 const char16_t g_szClassName[] = u"node-gdi";
@@ -34,6 +35,8 @@ StringFormat *current_stringformat;
 
 bool showTitleBar;
 uint32_t titleBarHeight;
+
+double currentDpi = 0;
 
 napi_value run_paint_op(napi_env env, napi_value op) {
   napi_value val;
@@ -112,6 +115,7 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     for (uint32_t i = 0; i < 4; i++) {
       assert(napi_get_element(env, op, i + 1, &val) == napi_ok);
       assert(napi_get_value_double(env, val, &coord[i]) == napi_ok);
+      coord[i] *= currentDpi / 96;
     }
 
     char16_t str[4096];
@@ -121,7 +125,6 @@ napi_value run_paint_op(napi_env env, napi_value op) {
   
     if (coord[2] < 0 || coord[3] < 0) {
       TextOutW(hdc_global, (int32_t)coord[0], (int32_t)coord[1], (LPCWSTR)str, len);
-    //   current_graphics->DrawString((WCHAR*)str, len, current_font, PointF((REAL)coord[0], (REAL)coord[1]), current_stringformat, current_brush);
     } else {
       uint32_t options;
       assert(napi_get_element(env, op, 5, &val) == napi_ok);
@@ -129,7 +132,6 @@ napi_value run_paint_op(napi_env env, napi_value op) {
       RECT rect = { (int32_t)coord[0], (int32_t)coord[1], (int32_t)(coord[0] + coord[2]), (int32_t)(coord[1] + coord[3]) };
 
       DrawTextExW(hdc_global, (LPWSTR)str, len, &rect, options, NULL);
-    //   current_graphics->DrawString((WCHAR*)str, len, current_font, RectF((REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]), current_stringformat, current_brush);
     }
 
   } else if (opcode == 6) {
@@ -138,9 +140,9 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     size_t font_name_len;
     assert(napi_get_value_string_utf16(env, val, font_name, 4096, &font_name_len) == napi_ok);
 
-    uint32_t font_size;
+    int32_t font_size;
     assert(napi_get_element(env, op, 2, &val) == napi_ok);
-    assert(napi_get_value_uint32(env, val, &font_size) == napi_ok);
+    assert(napi_get_value_int32(env, val, &font_size) == napi_ok);
 
     uint32_t font_weight;
     assert(napi_get_element(env, op, 3, &val) == napi_ok);
@@ -194,7 +196,8 @@ napi_value run_paint_op(napi_env env, napi_value op) {
       DeleteObject(font);
     }
 
-    font = CreateFontW(font_size, 0, 0, 0, font_weight, italic, underline, strikeout, DEFAULT_CHARSET,
+    font_size = (int32_t)(font_size * currentDpi / 96);
+    font = CreateFontW(-font_size, 0, 0, 0, font_weight, italic, underline, strikeout, DEFAULT_CHARSET,
       OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, FIXED_PITCH, (LPCWSTR)font_name);
     SelectObject(hdc_global, font);
   } else if (opcode == 7) {
@@ -779,6 +782,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       r = DefWindowProc(hwnd, msg, wParam, lParam);
       break;
 
+    // case WM_NCCREATE:
+    // {
+    //   EnableNonClientDpiScaling(hwnd);
+    //   return (DefWindowProc(hwnd, msg, wParam, lParam));
+    // }
     // case WM_NCPAINT:
     //   hDC = GetDCEx(hwnd, (HRGN)wParam, DCX_WINDOW | DCX_INTERSECTRGN);
     //   printf("test");
@@ -786,7 +794,25 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     //   Rectangle(hDC, 0, 0, 1000, 1000);
     //   ReleaseDC(hwnd, hDC);
     //   break;
-    case WM_PAINT:
+    case WM_DPICHANGED:{
+      UINT dpi = HIWORD(wParam);
+      currentDpi = dpi;
+      if (screen_buffer) {
+        DeleteObject(screen_buffer);
+      }
+      screen_buffer = NULL;
+      RECT* const prcNewWindow = (RECT*)lParam;
+      SetWindowPos(hwnd,
+          NULL,
+          prcNewWindow->left,
+          prcNewWindow->top,
+          prcNewWindow->right - prcNewWindow->left,
+          prcNewWindow->bottom - prcNewWindow->top,
+          SWP_NOZORDER | SWP_NOACTIVATE);
+      InvalidateRect(hwnd, NULL, NULL);
+      break;
+    }
+    case WM_PAINT: {
       hDC = BeginPaint(hwnd, &Ps);
       SetGraphicsMode(hDC, GM_ADVANCED);
       hdc_global = CreateCompatibleDC(hDC);
@@ -798,6 +824,27 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       hbmOld = (HBITMAP)SelectObject(hdc_global, screen_buffer);
 
       current_graphics = Graphics::FromHDC(hdc_global); // new Graphics(hDC);
+      // HMONITOR hMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+
+      // UINT dpiX, dpiY;
+      // GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
+      double dpiX;
+      dpiX = current_graphics->GetDpiX();
+      if (currentDpi == 0) { // on first paint
+        currentDpi = dpiX;
+        if (abs(currentDpi - 96) > 0.001) { // if DPI is non-standard then the window should be resized to have correct sizes
+          SetWindowPos(hwnd,
+            NULL,
+            NULL,
+            NULL,
+            (int32_t)(rect.right * currentDpi / 96),
+            (int32_t)(rect.bottom * currentDpi / 96),
+            SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE);
+          InvalidateRect(hwnd, NULL, NULL);
+          break;
+        }
+      }
+      current_graphics->ScaleTransform((REAL)(currentDpi / 96), (REAL)(currentDpi / 96));
       current_graphics->SetTextRenderingHint(TextRenderingHintClearTypeGridFit);
       current_graphics->SetCompositingQuality(CompositingQualityHighQuality);
       current_graphics->SetSmoothingMode(SmoothingModeAntiAlias);
@@ -827,7 +874,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
       EndPaint(hwnd, &Ps);
       break;
-
+    }
     case WM_NCHITTEST:
       if (showTitleBar) {
         r = DefWindowProc(hwnd, msg, wParam, lParam);
@@ -973,6 +1020,8 @@ napi_value API_StartWindow(napi_env env, napi_callback_info info) {
   assert(napi_get_named_property(env, obj, "titleBarHeight", &val) == napi_ok);
   assert(napi_get_value_uint32(env, val, &titleBarHeight) == napi_ok);
 
+  SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
   WNDCLASSEX wc;
 
   wc.cbSize        = sizeof(WNDCLASSEX);
@@ -1072,8 +1121,8 @@ napi_value API_GetWindowRect(napi_env env, napi_callback_info info) {
   assert(napi_set_element(env, ret, 1, ret_arr[1]) == napi_ok);
 
   GetClientRect(hwnd, &rect);
-  assert(napi_create_int32(env, rect.right - 1, &ret_arr[2]) == napi_ok);
-  assert(napi_create_int32(env, rect.bottom - 1, &ret_arr[3]) == napi_ok);
+  assert(napi_create_double(env, (rect.right - 1) * 96 / currentDpi, &ret_arr[2]) == napi_ok);
+  assert(napi_create_double(env, (rect.bottom - 1) * 96 / currentDpi, &ret_arr[3]) == napi_ok);
   assert(napi_set_element(env, ret, 2, ret_arr[2]) == napi_ok);
   assert(napi_set_element(env, ret, 3, ret_arr[3]) == napi_ok);
 
@@ -1121,6 +1170,12 @@ napi_value API_GetClipboard(napi_env env, napi_callback_info info) {
     CloseClipboard();
   }
   return str;
+}
+
+napi_value API_GetDpi(napi_env env, napi_callback_info info) {
+  napi_value val;
+  assert(napi_create_double(env, currentDpi, &val) == napi_ok);
+  return val;
 }
 
 napi_value API_ShowWindow(napi_env env, napi_callback_info info) {
@@ -1199,6 +1254,7 @@ napi_value Init(napi_env env, napi_value exports) {
   AddFunc(env, exports, API_Repaint, "repaint");
   AddFunc(env, exports, API_SetClipboard, "setClipboard");
   AddFunc(env, exports, API_GetClipboard, "getClipboard");
+  AddFunc(env, exports, API_GetDpi, "getDpi");
 
   return exports;
 }

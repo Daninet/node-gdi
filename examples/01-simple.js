@@ -23,8 +23,6 @@ window.onPaint(g => {
   g.penColor(255, 255, 255);
   g.font('Sergoe UI', 16, 400);
   g.text(50, 30, 'Hello world from GDILib!');
-  g.brushColor(255, 0, 0);
-  g.rectangle(10, 30, 100, 140, false, true);
 });
 
 setInterval(() => {

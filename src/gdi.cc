@@ -9,7 +9,6 @@
 #define GDIPVER 0x0110
 #include <gdiplus.h>
 #include <shlwapi.h>
-#include <shellscalingapi.h>
 using namespace Gdiplus;
 
 const char16_t g_szClassName[] = u"node-gdi";
@@ -52,7 +51,7 @@ napi_value run_paint_op(napi_env env, napi_value op) {
       assert(napi_get_element(env, op, i + 1, &val) == napi_ok);
       assert(napi_get_value_double(env, val, &coord[i]) == napi_ok);
     }
-    current_graphics->DrawLine(current_pen, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]);
+    assert(current_graphics->DrawLine(current_pen, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]) == Ok);
   } else if (opcode == 2) {
     uint32_t col[4];
 
@@ -62,9 +61,9 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     }
     // HPEN hPen = CreatePen(PS_SOLID, 1, RGB(col[0], col[1], col[2]));
     // SelectObject(hdc_global, hPen);
-    SetDCPenColor(hdc_global, RGB(col[0], col[1], col[2]));
-    SetTextColor(hdc_global, RGB(col[0], col[1], col[2]));
-    current_pen->SetColor(Color(col[3], col[0], col[1], col[2]));
+    assert(SetDCPenColor(hdc_global, RGB(col[0], col[1], col[2])) != CLR_INVALID);
+    assert(SetTextColor(hdc_global, RGB(col[0], col[1], col[2])) != CLR_INVALID);
+    assert(current_pen->SetColor(Color(col[3], col[0], col[1], col[2])) == Ok);
   } else if (opcode == 3) {
     double coord[4];
 
@@ -82,10 +81,10 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(napi_get_value_bool(env, val, &fill) == napi_ok);
 
     if (stroke) {
-      current_graphics->DrawRectangle(current_pen, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]);
+      assert(current_graphics->DrawRectangle(current_pen, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]) == Ok);
     }
     if (fill) {
-      current_graphics->FillRectangle(current_brush, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]);
+      assert(current_graphics->FillRectangle(current_brush, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]) == Ok);
     }
   } else if (opcode == 4) {
     double coord[4];
@@ -104,10 +103,10 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(napi_get_value_bool(env, val, &fill) == napi_ok);
 
     if (stroke) {
-      current_graphics->DrawEllipse(current_pen, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]);
+      assert(current_graphics->DrawEllipse(current_pen, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]) == Ok);
     }
     if (fill) {
-      current_graphics->FillEllipse(current_brush, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]);
+      assert(current_graphics->FillEllipse(current_brush, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]) == Ok);
     }
   } else if (opcode == 5) {
     double coord[4];
@@ -269,11 +268,11 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(napi_get_element(env, op, 3, &val) == napi_ok);
     assert(napi_get_value_double(env, val, &dy) == napi_ok);
 
-    current_graphics->TranslateTransform((REAL)dx, (REAL)dy);
-    current_graphics->RotateTransform((REAL)angle);
-    current_graphics->TranslateTransform(-(REAL)dx, -(REAL)dy);
+    assert(current_graphics->TranslateTransform((REAL)dx, (REAL)dy) == Ok);
+    assert(current_graphics->RotateTransform((REAL)angle) == Ok);
+    assert(current_graphics->TranslateTransform(-(REAL)dx, -(REAL)dy) == Ok);
   } else if (opcode == 11) {
-    current_graphics->ResetTransform();
+    assert(current_graphics->ResetTransform() == Ok);
   } else if (opcode == 12) {
     uint32_t col[4];
 
@@ -281,7 +280,7 @@ napi_value run_paint_op(napi_env env, napi_value op) {
       assert(napi_get_element(env, op, i + 1, &val) == napi_ok);
       assert(napi_get_value_uint32(env, val, &col[i]) == napi_ok);
     }
-    current_graphics->Clear(Color(col[3], col[0], col[1], col[2]));
+    assert(current_graphics->Clear(Color(col[3], col[0], col[1], col[2])) == Ok);
   } else if (opcode == 13) {
     double coord[4];
 
@@ -360,52 +359,27 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     }
 
     RectF rect((REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]);
-    current_graphics->SetClip(rect, cm);
+    assert(current_graphics->SetClip(rect, cm) == Ok);
   } else if (opcode == 16) {
-    current_graphics->ResetClip();
+    assert(current_graphics->ResetClip() == Ok);
   } else if (opcode == 17) {
     char16_t str[4096];
     assert(napi_get_element(env, op, 1, &val) == napi_ok);
     size_t len;
     assert(napi_get_value_string_utf16(env, val, str, 4096, &len) == napi_ok);
 
-    // double w, h;
-
-    // assert(napi_get_element(env, op, 2, &val) == napi_ok);
-    // assert(napi_get_value_double(env, val, &w) == napi_ok);
-
-    // assert(napi_get_element(env, op, 3, &val) == napi_ok);
-    // assert(napi_get_value_double(env, val, &h) == napi_ok);
-
-    // SizeF sizeF;
-    // RectF rectF;
-    // int32_t codepointsFitted = 0, linesFilled = 0;
-    // if (w < 0 || h < 0) {
-    //   current_graphics->MeasureString((WCHAR*)str, len, current_font, PointF(0, 0), current_stringformat, &rectF);
-    // } else {
-    //   current_graphics->MeasureString((WCHAR*)str, len, current_font, SizeF((REAL)w, (REAL)h), current_stringformat, &sizeF, &codepointsFitted, &linesFilled);
-    // }
-
     SIZE gdiSize;
-    GetTextExtentPoint32W(hdc_global, (WCHAR*)str, len, &gdiSize);
-    GetTextExtentPoint32W(hdc_global, (WCHAR*)str, len, &gdiSize);
+    assert(GetTextExtentPoint32W(hdc_global, (WCHAR*)str, len, &gdiSize));
 
     napi_value ret;
     assert(napi_create_array_with_length(env, 2, &ret) == napi_ok);
     napi_value ret_arr[2];
-    // if (w < 0 || h < 0) {
-    //   assert(napi_create_uint32(env, gdiSize.cx, &ret_arr[0]) == napi_ok);
-    //   assert(napi_create_uint32(env, gdiSize.cy, &ret_arr[1]) == napi_ok);
-    // } else {
+
     assert(napi_create_uint32(env, gdiSize.cx, &ret_arr[0]) == napi_ok);
     assert(napi_create_uint32(env, gdiSize.cy, &ret_arr[1]) == napi_ok);
-    // }
-    // assert(napi_create_int32(env, codepointsFitted, &ret_arr[2]) == napi_ok);
-    // assert(napi_create_int32(env, linesFilled, &ret_arr[3]) == napi_ok);
+
     assert(napi_set_element(env, ret, 0, ret_arr[0]) == napi_ok);
     assert(napi_set_element(env, ret, 1, ret_arr[1]) == napi_ok);
-    // assert(napi_set_element(env, ret, 2, ret_arr[2]) == napi_ok);
-    // assert(napi_set_element(env, ret, 3, ret_arr[3]) == napi_ok);
     return ret;
   } else if (opcode == 18) {
     void *data;
@@ -526,10 +500,10 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(napi_get_value_bool(env, val, &fill) == napi_ok);
 
     if (stroke) {
-      current_graphics->DrawPie(current_pen, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3], (REAL)angles[0], (REAL)angles[1]);
+      assert(current_graphics->DrawPie(current_pen, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3], (REAL)angles[0], (REAL)angles[1]) == Ok);
     }
     if (fill) {
-      current_graphics->FillPie(current_brush, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3], (REAL)angles[0], (REAL)angles[1]);
+      assert(current_graphics->FillPie(current_brush, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3], (REAL)angles[0], (REAL)angles[1]) == Ok);
     }
   } else if (opcode == 21) {
     double coord[4];
@@ -546,7 +520,7 @@ napi_value run_paint_op(napi_env env, napi_value op) {
       assert(napi_get_value_double(env, val, &angles[i]) == napi_ok);
     }
 
-    current_graphics->DrawArc(current_pen, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3], (REAL)angles[0], (REAL)angles[1]);
+    assert(current_graphics->DrawArc(current_pen, (REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3], (REAL)angles[0], (REAL)angles[1]) == Ok);
   } else if (opcode == 22) {
     napi_value arr;
     assert(napi_get_element(env, op, 1, &arr) == napi_ok);
@@ -569,7 +543,7 @@ napi_value run_paint_op(napi_env env, napi_value op) {
 
     PointF* pPoints = &points[0];
 
-    current_graphics->DrawBeziers(current_pen, pPoints, array_len / 2);
+    assert(current_graphics->DrawBeziers(current_pen, pPoints, array_len / 2) == Ok);
   } else if (opcode == 23) {
     napi_value arr;
     assert(napi_get_element(env, op, 1, &arr) == napi_ok);
@@ -601,11 +575,11 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(napi_get_value_bool(env, val, &fill) == napi_ok);
 
     if (fill) {
-      current_graphics->FillClosedCurve(current_brush, pPoints, array_len / 2);
+      assert(current_graphics->FillClosedCurve(current_brush, pPoints, array_len / 2) == Ok);
     } else if (close) {
-      current_graphics->DrawClosedCurve(current_pen, pPoints, array_len / 2);
+      assert(current_graphics->DrawClosedCurve(current_pen, pPoints, array_len / 2) == Ok);
     } else {
-      current_graphics->DrawCurve(current_pen, pPoints, array_len / 2);
+      assert(current_graphics->DrawCurve(current_pen, pPoints, array_len / 2) == Ok);
     }
   } else if (opcode == 24) {
     double width;
@@ -613,7 +587,7 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(napi_get_element(env, op, 1, &val) == napi_ok);
     assert(napi_get_value_double(env, val, &width) == napi_ok);
 
-    current_pen->SetWidth((REAL)width);
+    assert(current_pen->SetWidth((REAL)width) == Ok);
   } else if (opcode == 25) {
     uint32_t trimming;
     assert(napi_get_element(env, op, 1, &val) == napi_ok);
@@ -900,7 +874,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
           r = HTRIGHT;
         } else if (x - windowRect.left < 5) {
           r = HTLEFT;
-        } else if (titleBarHeight > 0 && y - windowRect.top < (int32_t)titleBarHeight) {
+        } else if (titleBarHeight > 0 && y - windowRect.top < (int32_t)titleBarHeight * currentDpi / 96) {
           r = HTCAPTION;
         }
       }
@@ -1020,7 +994,19 @@ napi_value API_StartWindow(napi_env env, napi_callback_info info) {
   assert(napi_get_named_property(env, obj, "titleBarHeight", &val) == napi_ok);
   assert(napi_get_value_uint32(env, val, &titleBarHeight) == napi_ok);
 
-  SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+  bool alwaysOnTop;
+  assert(napi_get_named_property(env, obj, "alwaysOnTop", &val) == napi_ok);
+  assert(napi_get_value_bool(env, val, &alwaysOnTop) == napi_ok);
+
+  bool transparency;
+  assert(napi_get_named_property(env, obj, "transparency", &val) == napi_ok);
+  assert(napi_get_value_bool(env, val, &transparency) == napi_ok);
+
+  assert(
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) ||
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE) ||
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE)
+    );
 
   WNDCLASSEX wc;
 
@@ -1054,6 +1040,23 @@ napi_value API_StartWindow(napi_env env, napi_callback_info info) {
   if (hwnd == NULL) {
     MessageBox(NULL, (LPCWSTR)u"Window Creation Failed!", (LPCWSTR)u"Error!", MB_ICONEXCLAMATION | MB_OK);
     return 0;
+  }
+
+  if (alwaysOnTop) {
+    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+  }
+
+  if (transparency) {
+    uint32_t r, g, b;
+    assert(napi_get_named_property(env, obj, "transparentColorR", &val) == napi_ok);
+    assert(napi_get_value_uint32(env, val, &r) == napi_ok);
+    assert(napi_get_named_property(env, obj, "transparentColorG", &val) == napi_ok);
+    assert(napi_get_value_uint32(env, val, &g) == napi_ok);
+    assert(napi_get_named_property(env, obj, "transparentColorB", &val) == napi_ok);
+    assert(napi_get_value_uint32(env, val, &b) == napi_ok);
+
+    SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+    SetLayeredWindowAttributes(hwnd, RGB(r, g, b), 0, LWA_COLORKEY);
   }
 
   ShowWindow(hwnd, SW_SHOW);

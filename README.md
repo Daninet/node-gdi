@@ -29,42 +29,41 @@ const window = GDILib.init({ title: 'GDILib - Example 1.' });
 
 let angle = 0;
 
-window.onPaint(p => {
+window.onPaint(g => {
   // clear screen to gray
-  // p.clear(r, g, b)
-  p.clear(39, 40, 34); 
+  // g.clear(r, g, b)
+  g.clear(39, 40, 34); 
 
 
   // draw text
-  p
-    // p.brushColor(r, g, b, a = 255)
-    .brushColor(255, 255, 255)
-    // p.font(name, size, weight)
-    .font('Consolas', 16, 400)
-    // p.text(x, y, str)
-    .text(30, 30, 'Hello world from GDILib!');
+
+  // g.penColor(r, g, b, a = 255)
+  g.penColor(255, 255, 255);
+  // g.font(name, size, weight)
+  g.font('Consolas', 16, 400);
+  // g.text(x, y, str)
+  g.text(30, 30, 'Hello world from GDILib!');
 
 
   // draw colored triangle
-  p
-    // p.penColor(r, g, b, a = 255)
-    .penColor(255, 0, 0) 
-    // p.line(startX, startY, endX, endY)
-    .line(400, 30, 500, 200)
-    .penColor(0, 255, 0)
-    .line(400, 30, 300, 200)
-    .penColor(0, 0, 255) 
-    .line(300, 200, 500, 200);
+
+  g.penColor(255, 0, 0) ;
+  // g.line(startX, startY, endX, endY)
+  g.line(400, 30, 500, 200);
+  g.penColor(0, 255, 0);
+  g.line(400, 30, 300, 200);
+  g.penColor(0, 0, 255) ;
+  g.line(300, 200, 500, 200);
 
 
   // draw rotating rectangle
-  p
-    // p.rotate(angle, originX, originY)
-    .rotate(angle, 50 + 80, 50 + 80)
-    .penColor(255, 255, 255)
 
-    // p.rectangle (x, y, width, height)
-    .rectangle(80, 80, 100, 100); 
+  // g.rotate(angle, originX, originY)
+  g.rotate(angle, 50 + 80, 50 + 80);
+  g.penColor(255, 255, 255);
+
+  // g.rectangle (x, y, width, height)
+  g.rectangle(80, 80, 100, 100); 
 
 });
 
@@ -86,11 +85,12 @@ options = {
   height: 400,
   backgroundColor: [39, 40, 34],
   frameless: false,
-  titleBarHeight: 0
+  titleBarHeight: 0,
+  transparency: false,
+  transparentColor: [255, 0, 0],
+  alwaysOnTop: false
 };
 ```
-
-
 
 
 

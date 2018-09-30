@@ -123,14 +123,14 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(napi_get_value_string_utf16(env, val, str, 4096, &len) == napi_ok);
   
     if (coord[2] < 0 || coord[3] < 0) {
-      TextOutW(hdc_global, (int32_t)coord[0], (int32_t)coord[1], (LPCWSTR)str, len);
+      assert(TextOutW(hdc_global, (int32_t)coord[0], (int32_t)coord[1], (LPCWSTR)str, len));
     } else {
       uint32_t options;
       assert(napi_get_element(env, op, 5, &val) == napi_ok);
       assert(napi_get_value_uint32(env, val, &options) == napi_ok);
       RECT rect = { (int32_t)coord[0], (int32_t)coord[1], (int32_t)(coord[0] + coord[2]), (int32_t)(coord[1] + coord[3]) };
 
-      DrawTextExW(hdc_global, (LPWSTR)str, len, &rect, options, NULL);
+      assert(DrawTextExW(hdc_global, (LPWSTR)str, len, &rect, options, NULL));
     }
 
   } else if (opcode == 6) {
@@ -198,6 +198,7 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     font_size = (int32_t)(font_size * currentDpi / 96);
     font = CreateFontW(-font_size, 0, 0, 0, font_weight, italic, underline, strikeout, DEFAULT_CHARSET,
       OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, FIXED_PITCH, (LPCWSTR)font_name);
+    assert(font);
     SelectObject(hdc_global, font);
   } else if (opcode == 7) {
     uint32_t col[4];
@@ -375,8 +376,8 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(napi_create_array_with_length(env, 2, &ret) == napi_ok);
     napi_value ret_arr[2];
 
-    assert(napi_create_uint32(env, gdiSize.cx * 96 / currentDpi, &ret_arr[0]) == napi_ok);
-    assert(napi_create_uint32(env, gdiSize.cy * 96 / currentDpi, &ret_arr[1]) == napi_ok);
+    assert(napi_create_double(env, gdiSize.cx * 96 / currentDpi, &ret_arr[0]) == napi_ok);
+    assert(napi_create_double(env, gdiSize.cy * 96 / currentDpi, &ret_arr[1]) == napi_ok);
 
     assert(napi_set_element(env, ret, 0, ret_arr[0]) == napi_ok);
     assert(napi_set_element(env, ret, 1, ret_arr[1]) == napi_ok);
@@ -437,7 +438,7 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     }
 
     Rect dest(destRect[0], destRect[1], destRect[2], destRect[3]);
-    current_graphics->DrawImage(&image, dest, srcRect[0], srcRect[1], srcRect[2], srcRect[3], UnitPixel, NULL, NULL, NULL);
+    assert(current_graphics->DrawImage(&image, dest, srcRect[0], srcRect[1], srcRect[2], srcRect[3], UnitPixel, NULL, NULL, NULL) == Ok);
     istream->Release();
   } else if (opcode == 19) {
     napi_value arr;
@@ -470,11 +471,11 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(napi_get_value_bool(env, val, &fill) == napi_ok);
 
     if (stroke) {
-      current_graphics->DrawPolygon(current_pen, pPoints, array_len / 2);
+      assert(current_graphics->DrawPolygon(current_pen, pPoints, array_len / 2) == Ok);
     }
 
     if (fill) {
-      current_graphics->FillPolygon(current_brush, pPoints, array_len / 2);
+      assert(current_graphics->FillPolygon(current_brush, pPoints, array_len / 2) == Ok);
     }
   } else if (opcode == 20) {
     double coord[4];
@@ -615,23 +616,12 @@ napi_value run_paint_op(napi_env env, napi_value op) {
         break;
     }
 
-    current_stringformat->SetTrimming(st);
+    assert(current_stringformat->SetTrimming(st) == Ok);
   } else if (opcode == 26) {
-    double dpiX, dpiY;
-    dpiX = current_graphics->GetDpiX();
-    dpiY = current_graphics->GetDpiY();
-  
-    napi_value ret;
-    assert(napi_create_array_with_length(env, 2, &ret) == napi_ok);
-    napi_value ret_arr[2];
-    assert(napi_create_double(env, dpiX, &ret_arr[0]) == napi_ok);
-    assert(napi_create_double(env, dpiY, &ret_arr[1]) == napi_ok);
-    assert(napi_set_element(env, ret, 0, ret_arr[0]) == napi_ok);
-    assert(napi_set_element(env, ret, 1, ret_arr[1]) == napi_ok);
-    return ret;
+    
   } else if (opcode == 27) {
     Matrix matrix;
-    current_graphics->GetTransform(&matrix);
+    assert(current_graphics->GetTransform(&matrix) == Ok);
 
     REAL matrix_el[6];
     matrix.GetElements(matrix_el);
@@ -797,15 +787,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       }
       hbmOld = (HBITMAP)SelectObject(hdc_global, screen_buffer);
 
-      current_graphics = Graphics::FromHDC(hdc_global); // new Graphics(hDC);
-      // HMONITOR hMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+      current_graphics = Graphics::FromHDC(hdc_global);
 
-      // UINT dpiX, dpiY;
-      // GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
-      double dpiX;
-      dpiX = current_graphics->GetDpiX();
       if (currentDpi == 0) { // on first paint
-        currentDpi = dpiX;
+        currentDpi = current_graphics->GetDpiX();
         if (abs(currentDpi - 96) > 0.001) { // if DPI is non-standard then the window should be resized to have correct sizes
           SetWindowPos(hwnd,
             NULL,
@@ -818,10 +803,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
           break;
         }
       }
-      current_graphics->ScaleTransform((REAL)(currentDpi / 96), (REAL)(currentDpi / 96));
-      current_graphics->SetTextRenderingHint(TextRenderingHintClearTypeGridFit);
-      current_graphics->SetCompositingQuality(CompositingQualityHighQuality);
-      current_graphics->SetSmoothingMode(SmoothingModeAntiAlias);
+      assert(current_graphics->ScaleTransform((REAL)(currentDpi / 96), (REAL)(currentDpi / 96)) == Ok);
+      assert(current_graphics->SetTextRenderingHint(TextRenderingHintClearTypeGridFit) == Ok);
+      assert(current_graphics->SetCompositingQuality(CompositingQualityHighQuality) == Ok);
+      assert(current_graphics->SetSmoothingMode(SmoothingModeAntiAlias) == Ok);
       current_pen = new Pen(Color(255, 0, 0, 0));
       // current_font = new Font(hDC);
       current_brush = new SolidBrush(Color(255, 0, 0, 0));
@@ -833,7 +818,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
       // screen_graphics = new Graphics(hDC);
       // screen_graphics->DrawImage(screen_buffer,rect.left,rect.top,rect.right,rect.bottom);
-      BitBlt(hDC, 0, 0, rect.right, rect.bottom, hdc_global, 0, 0, SRCCOPY);
+      assert(BitBlt(hDC, 0, 0, rect.right, rect.bottom, hdc_global, 0, 0, SRCCOPY));
 
       // delete screen_graphics;
       delete current_graphics;
@@ -927,7 +912,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved) {
   if (reason == DLL_PROCESS_ATTACH) {
     g_hmodDLL = hModule;
     GdiplusStartupInput gdiplusStartupInput;
-    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+    assert(GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL) == Ok);
   } else if (reason == DLL_PROCESS_DETACH) {
     GdiplusShutdown(gdiplusToken);
   }

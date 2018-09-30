@@ -14,6 +14,10 @@ platform:
   - x64
   - x86
 
+branches:
+  only:
+    - master
+
 shallow_clone: true
 
 install:

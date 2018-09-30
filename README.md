@@ -78,7 +78,7 @@ GDILib methods
 
 GDILib.init(options)
 -----
-```
+```javascript
 options = {
   title: 'GDI Window',
   width: 600,

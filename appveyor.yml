@@ -31,7 +31,7 @@ install:
   - IF /I "%PLATFORM%" == "x86" SET PATH=C:\python27;%PATH%
   - IF /I "%PLATFORM%" == "x64" CALL "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
   - IF /I "%PLATFORM%" == "x86" CALL "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars32.bat"
-  - npm ci
+  - npm install
   - node_modules\.bin\node-pre-gyp package publish
 
 build: off

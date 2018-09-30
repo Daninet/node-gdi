@@ -375,8 +375,8 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(napi_create_array_with_length(env, 2, &ret) == napi_ok);
     napi_value ret_arr[2];
 
-    assert(napi_create_uint32(env, gdiSize.cx, &ret_arr[0]) == napi_ok);
-    assert(napi_create_uint32(env, gdiSize.cy, &ret_arr[1]) == napi_ok);
+    assert(napi_create_uint32(env, gdiSize.cx * 96 / currentDpi, &ret_arr[0]) == napi_ok);
+    assert(napi_create_uint32(env, gdiSize.cy * 96 / currentDpi, &ret_arr[1]) == napi_ok);
 
     assert(napi_set_element(env, ret, 0, ret_arr[0]) == napi_ok);
     assert(napi_set_element(env, ret, 1, ret_arr[1]) == napi_ok);

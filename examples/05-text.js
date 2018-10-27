@@ -14,7 +14,6 @@ window.onPaint(g => {
 
   g.rectangle(40, 80, 235, 18);
   g.text(40, 80, 'Cropped text - Lorem ipsum', 235, 18);
-
   g.rectangle(40, 110, 235, 16);
   g.text(40, 110, 'Ellipsis points - Lorem ipsum', 235, 16, { wordEllipsis: true });
 
@@ -25,10 +24,8 @@ window.onPaint(g => {
   g.text(40, 220, 'Centered text', 235, 50, { vCenter: true, singleLine: true, center: true });
 
   g.line(450, 20, 450, 100);
-  g.setAlignment('left');
-  g.text(450, 20, 'Left', 200, 200);
-  g.setAlignment('center');
-  g.text(450, 50, 'Center');
-  g.setAlignment('right');
-  g.text(450, 90, 'Right');
+  g.rectangle(450, 20, 100, 90);
+  g.text(450, 20, 'Left', 100, 50);
+  g.text(450, 50, 'Center', 100, 50, { center: true });
+  g.text(450, 90, 'Right', 100, 50, { right: true });
 });

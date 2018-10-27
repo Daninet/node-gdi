@@ -303,10 +303,6 @@ p.rotate(angle, originX = 0, originY = 0)
 -----
 
 
-p.setAlignment(alignment)
------
-
-
 p.setClip(x, y, width, height, combineMode = 'REPLACE')
 -----
 

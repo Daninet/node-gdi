@@ -32,6 +32,8 @@ Pen *current_pen;
 Brush *current_brush;
 StringFormat *current_stringformat;
 
+bool rotated = false;
+
 bool showTitleBar;
 uint32_t titleBarHeight;
 
@@ -122,15 +124,35 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     size_t len;
     assert(napi_get_value_string_utf16(env, val, str, 4096, &len) == napi_ok);
   
-    if (coord[2] < 0 || coord[3] < 0) {
-      assert(TextOutW(hdc_global, (int32_t)coord[0], (int32_t)coord[1], (LPCWSTR)str, len));
-    } else {
-      uint32_t options;
-      assert(napi_get_element(env, op, 5, &val) == napi_ok);
-      assert(napi_get_value_uint32(env, val, &options) == napi_ok);
-      RECT rect = { (int32_t)coord[0], (int32_t)coord[1], (int32_t)(coord[0] + coord[2]), (int32_t)(coord[1] + coord[3]) };
+    uint32_t options;
+    assert(napi_get_element(env, op, 5, &val) == napi_ok);
+    assert(napi_get_value_uint32(env, val, &options) == napi_ok);
 
+    if (rotated) {
+      Matrix m;
+      assert(current_graphics->GetTransform(&m) == Ok);
+      REAL v[6];
+      assert(m.GetElements(v) == Ok);
+      XFORM xForm;
+      xForm.eM11 = v[0];
+      xForm.eM12 = v[1];
+      xForm.eM21 = v[2];
+      xForm.eM22 = v[3];
+      xForm.eDx  = v[4];
+      xForm.eDy  = v[5];
+      SetWorldTransform(hdc_global, &xForm);
+    }
+
+    if (coord[2] < 0 || coord[3] < 0) {
+      RECT rect = { (int32_t)coord[0], (int32_t)coord[1], 65536, 65536 };
       assert(DrawTextExW(hdc_global, (LPWSTR)str, len, &rect, options, NULL));
+    } else {
+      RECT rect = { (int32_t)coord[0], (int32_t)coord[1], (int32_t)(coord[0] + coord[2]), (int32_t)(coord[1] + coord[3]) };
+      assert(DrawTextExW(hdc_global, (LPWSTR)str, len, &rect, options, NULL));
+    }
+
+    if (rotated) {
+      ModifyWorldTransform(hdc_global, NULL, MWT_IDENTITY);
     }
 
   } else if (opcode == 6) {
@@ -239,24 +261,24 @@ napi_value run_paint_op(napi_env env, napi_value op) {
 
     current_stringformat->SetFormatFlags(formatFlags);
   } else if (opcode == 9) {
-    uint32_t alignment;
-    assert(napi_get_element(env, op, 1, &val) == napi_ok);
-    assert(napi_get_value_uint32(env, val, &alignment) == napi_ok);
+    // uint32_t alignment;
+    // assert(napi_get_element(env, op, 1, &val) == napi_ok);
+    // assert(napi_get_value_uint32(env, val, &alignment) == napi_ok);
 
-    UINT sa;
-    switch (alignment) {
-      case 0:
-        sa = TA_LEFT;
-        break;
-      case 1:
-        sa = TA_CENTER;
-        break;
-      case 2:
-        sa = TA_RIGHT;
-        break;
-    }
-    // current_stringformat->SetAlignment(sa);
-    SetTextAlign(hdc_global, sa);
+    // UINT sa;
+    // switch (alignment) {
+    //   case 0:
+    //     sa = TA_LEFT;
+    //     break;
+    //   case 1:
+    //     sa = TA_CENTER;
+    //     break;
+    //   case 2:
+    //     sa = TA_RIGHT;
+    //     break;
+    // }
+    // // current_stringformat->SetAlignment(sa);
+    // SetTextAlign(hdc_global, sa);
   } else if (opcode == 10) {
     double angle, dx, dy;
 
@@ -272,6 +294,8 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(current_graphics->TranslateTransform((REAL)dx, (REAL)dy) == Ok);
     assert(current_graphics->RotateTransform((REAL)angle) == Ok);
     assert(current_graphics->TranslateTransform(-(REAL)dx, -(REAL)dy) == Ok);
+
+    rotated = true;
   } else if (opcode == 11) {
     assert(current_graphics->ResetTransform() == Ok);
   } else if (opcode == 12) {
@@ -342,27 +366,41 @@ napi_value run_paint_op(napi_env env, napi_value op) {
     assert(napi_get_value_uint32(env, val, &combine_mode) == napi_ok);
 
     CombineMode cm = CombineModeReplace;
+    int32_t gdiMode = RGN_COPY;
     switch  (combine_mode) {
       case 0:
         cm = CombineModeReplace;
+        gdiMode = RGN_COPY;
+        break;
       case 1:
         cm = CombineModeIntersect;
+        gdiMode = RGN_AND;
+        break;
       case 2:
         cm = CombineModeUnion;
+        gdiMode = RGN_OR;
+        break;
       case 3:
         cm = CombineModeXor;
+        gdiMode = RGN_XOR;
+        break;
       case 4:
         cm = CombineModeExclude;
+        gdiMode = RGN_DIFF;
+        break;
       case 5:
         cm = CombineModeComplement;
-      default:
-        cm = CombineModeReplace;
+        break;
     }
 
     RectF rect((REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]);
     assert(current_graphics->SetClip(rect, cm) == Ok);
+    HRGN hRegion = CreateRectRgn((int)coord[0], (int)coord[1], (int)coord[2], (int)coord[3]);
+    ExtSelectClipRgn(hdc_global, hRegion, gdiMode);
+    DeleteObject(hRegion);
   } else if (opcode == 16) {
     assert(current_graphics->ResetClip() == Ok);
+    SelectClipRgn(hdc_global, NULL);
   } else if (opcode == 17) {
     char16_t str[4096];
     assert(napi_get_element(env, op, 1, &val) == napi_ok);
@@ -778,8 +816,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     }
     case WM_PAINT: {
       hDC = BeginPaint(hwnd, &Ps);
-      SetGraphicsMode(hDC, GM_ADVANCED);
       hdc_global = CreateCompatibleDC(hDC);
+      SetGraphicsMode(hdc_global, GM_ADVANCED);
       SetBkMode(hdc_global, TRANSPARENT);
 
       if (screen_buffer == NULL) {
@@ -818,6 +856,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
       // screen_graphics = new Graphics(hDC);
       // screen_graphics->DrawImage(screen_buffer,rect.left,rect.top,rect.right,rect.bottom);
+      if (rotated) {
+        assert(ModifyWorldTransform(hdc_global, NULL, MWT_IDENTITY));
+      }
       assert(BitBlt(hDC, 0, 0, rect.right, rect.bottom, hdc_global, 0, 0, SRCCOPY));
 
       // delete screen_graphics;

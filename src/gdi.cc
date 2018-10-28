@@ -393,9 +393,9 @@ napi_value run_paint_op(napi_env env, napi_value op) {
         break;
     }
 
-    RectF rect((REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]);
-    assert(current_graphics->SetClip(rect, cm) == Ok);
-    HRGN hRegion = CreateRectRgn((int)coord[0], (int)coord[1], (int)coord[2], (int)coord[3]);
+    // RectF rect((REAL)coord[0], (REAL)coord[1], (REAL)coord[2], (REAL)coord[3]);
+    // assert(current_graphics->SetClip(rect, cm) == Ok);
+    HRGN hRegion = CreateRectRgn((int)(coord[0] * currentDpi / 96), (int)(coord[1] * currentDpi / 96), (int)((coord[0] + coord[2]) * currentDpi / 96), (int)((coord[1] + coord[3]) * currentDpi / 96));
     ExtSelectClipRgn(hdc_global, hRegion, gdiMode);
     DeleteObject(hRegion);
   } else if (opcode == 16) {

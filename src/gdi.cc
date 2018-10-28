@@ -778,6 +778,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     case WM_NCMBUTTONDOWN:
     case WM_NCXBUTTONDOWN:
     case WM_NCMOUSEMOVE:
+    case WM_MOUSEWHEEL:
       p = { LOWORD(lParam), HIWORD(lParam) };
       ScreenToClient(hwnd, &p);
       jsLParam = MAKELPARAM(p.x, p.y);

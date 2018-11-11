@@ -1,6 +1,6 @@
 const GDILib = require('..');
 const fs = require('fs');
-const window = GDILib.init({ title: 'GDILib - Example 9.', width: 550, height: 380 });
+const window = GDILib.init({ title: 'GDILib - Example 9.', appId: 'GDI_EXAMPLE_9', width: 550, height: 380 });
 
 const imageBuffer = fs.readFileSync('examples/04-images-smiley.png');
 

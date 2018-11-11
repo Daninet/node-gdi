@@ -9,12 +9,13 @@
 #define GDIPVER 0x0110
 #include <gdiplus.h>
 #include <shlwapi.h>
+#include <shellscalingapi.h>
 using namespace Gdiplus;
-
-const char16_t g_szClassName[] = u"node-gdi";
 
 HMODULE g_hmodDLL;
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
+
+char16_t appId[512];
 
 napi_ref cb_wndProc;
 napi_ref cb_paint;
@@ -38,6 +39,8 @@ bool showTitleBar;
 uint32_t titleBarHeight;
 
 double currentDpi = 0;
+
+uint32_t minWidth, minHeight;
 
 napi_value run_paint_op(napi_env env, napi_value op) {
   napi_value val;
@@ -746,11 +749,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
   LPARAM jsLParam = lParam;
 
+  WINDOWPLACEMENT wndPlacement;
+
   switch(msg) {
-    case WM_CLOSE:
-      DestroyWindow(hwnd);
-      break;
     case WM_DESTROY:
+      wndPlacement.length = sizeof(WINDOWPLACEMENT);
+      GetWindowPlacement(hwnd, &wndPlacement);
       if (screen_buffer) {
         DeleteObject(screen_buffer);
       }
@@ -768,6 +772,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       }
       screen_buffer = NULL;
       break;
+
+    case WM_GETMINMAXINFO: {
+      MINMAXINFO* mmi = (MINMAXINFO*)lParam;
+      mmi->ptMinTrackSize.x = minWidth * currentDpi / 96;
+      mmi->ptMinTrackSize.y = minHeight * currentDpi / 96;
+      break;
+    }
+
+    case WM_SIZING: {
+      // RECT* const windowSize = (RECT*)lParam;
+      // int32_t width = windowSize->right - windowSize->left;
+      // int32_t height = windowSize->bottom - windowSize->top;
+
+      // if (width < minWidth || height < minHeight) return false;
+
+      // printf("sizing %d %d", width, height);
+      break;
+    }
     
     case WM_NCLBUTTONUP:
     case WM_NCRBUTTONUP:
@@ -831,12 +853,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       if (currentDpi == 0) { // on first paint
         currentDpi = current_graphics->GetDpiX();
         if (abs(currentDpi - 96) > 0.001) { // if DPI is non-standard then the window should be resized to have correct sizes
+          int32_t width = windowRect.right - windowRect.left;
+          int32_t height = windowRect.bottom - windowRect.top;
           SetWindowPos(hwnd,
             NULL,
             NULL,
             NULL,
-            (int32_t)(rect.right * currentDpi / 96),
-            (int32_t)(rect.bottom * currentDpi / 96),
+            (int32_t)(width * currentDpi / 96),
+            (int32_t)(height * currentDpi / 96),
             SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE);
           InvalidateRect(hwnd, NULL, NULL);
           break;
@@ -930,6 +954,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
   assert(napi_create_uint32(env_global, HIWORD(jsLParam), &n_hlParam) == napi_ok);
   assert(napi_set_named_property(env_global, response_object, "hlParam", n_hlParam) == napi_ok);
 
+  if (msg == WM_DESTROY) {
+    napi_value n_winPos;
+    assert(napi_create_buffer_copy(env_global, sizeof(WINDOWPLACEMENT), &wndPlacement, NULL, &n_winPos) == napi_ok);
+    assert(napi_set_named_property(env_global, response_object, "winPos", n_winPos) == napi_ok);
+  }
+
   napi_value result;
   assert(napi_call_function(env_global, null, cb_wndProc_val, 1, &response_object, &result) == napi_ok);
 
@@ -939,6 +969,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
   int32_t wndProcResult;
   if (resultType == napi_number) {
     assert(napi_get_value_int32(env_global, result, &wndProcResult) == napi_ok);
+  }
+
+  if (msg == WM_CLOSE) {
+    DestroyWindow(hwnd);
   }
 
   if (resultType != napi_undefined) {
@@ -1001,6 +1035,9 @@ napi_value API_StartWindow(napi_env env, napi_callback_info info) {
   size_t len;
   assert(napi_get_value_string_utf16(env, val, window_title, 512, &len) == napi_ok);
 
+  assert(napi_get_named_property(env, obj, "appId", &val) == napi_ok);
+  assert(napi_get_value_string_utf16(env, val, appId, 512, &len) == napi_ok);
+
   uint32_t window_width, window_height;
   assert(napi_get_named_property(env, obj, "width", &val) == napi_ok);
   assert(napi_get_value_uint32(env, val, &window_width) == napi_ok);
@@ -1029,6 +1066,11 @@ napi_value API_StartWindow(napi_env env, napi_callback_info info) {
   assert(napi_get_named_property(env, obj, "transparency", &val) == napi_ok);
   assert(napi_get_value_bool(env, val, &transparency) == napi_ok);
 
+  assert(napi_get_named_property(env, obj, "minWidth", &val) == napi_ok);
+  assert(napi_get_value_uint32(env, val, &minWidth) == napi_ok);
+  assert(napi_get_named_property(env, obj, "minHeight", &val) == napi_ok);
+  assert(napi_get_value_uint32(env, val, &minHeight) == napi_ok);
+
   assert(
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) ||
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE) ||
@@ -1047,7 +1089,7 @@ napi_value API_StartWindow(napi_env env, napi_callback_info info) {
   wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
   wc.hbrBackground = CreateSolidBrush( RGB(bg_r, bg_g, bg_b) );
   wc.lpszMenuName  = NULL;
-  wc.lpszClassName = (LPCWSTR)g_szClassName;
+  wc.lpszClassName = (LPCWSTR)appId;
   wc.hIconSm       = LoadIcon(NULL, IDI_APPLICATION);
 
   if (!RegisterClassEx(&wc)) {
@@ -1057,7 +1099,7 @@ napi_value API_StartWindow(napi_env env, napi_callback_info info) {
 
   hwnd = CreateWindowExW(
     0,
-    (LPCWSTR)g_szClassName,
+    (LPCWSTR)appId,
     (LPCWSTR)window_title,
     showTitleBar ? WS_OVERLAPPEDWINDOW | WS_VISIBLE : WS_POPUP,
     CW_USEDEFAULT, CW_USEDEFAULT, window_width, window_height,
@@ -1067,6 +1109,23 @@ napi_value API_StartWindow(napi_env env, napi_callback_info info) {
   if (hwnd == NULL) {
     MessageBox(NULL, (LPCWSTR)u"Window Creation Failed!", (LPCWSTR)u"Error!", MB_ICONEXCLAMATION | MB_OK);
     return 0;
+  }
+
+  assert(napi_get_named_property(env, obj, "winPos", &val) == napi_ok);
+  napi_valuetype winPosType;
+  assert(napi_typeof(env_global, val, &winPosType) == napi_ok);
+  if (winPosType != napi_undefined) {
+    void *placementData;
+    size_t placementLength;
+    assert(napi_get_buffer_info(env, val, &placementData, &placementLength) == napi_ok);
+    WINDOWPLACEMENT wndPlacement;
+    CopyMemory(&wndPlacement, placementData, placementLength);
+    int32_t width = *(int32_t*)((char *)placementData + sizeof(wndPlacement));
+    int32_t height = *(int32_t*)((char *)placementData + sizeof(wndPlacement) + 4);
+
+    SetWindowPlacement(hwnd, &wndPlacement);
+    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, width, height, SWP_NOMOVE);
+    // should resize window in case of multi monitor setup with different DPIs
   }
 
   if (alwaysOnTop) {
@@ -1139,22 +1198,28 @@ napi_value API_SetWindowRect(napi_env env, napi_callback_info info) {
 }
 
 napi_value API_GetWindowRect(napi_env env, napi_callback_info info) {
-  RECT rect;
-  GetWindowRect(hwnd, &rect);
+  RECT wndRect, clientRect;
+  GetWindowRect(hwnd, &wndRect);
 
   napi_value ret;
-  assert(napi_create_array_with_length(env, 4, &ret) == napi_ok);
-  napi_value ret_arr[4];
-  assert(napi_create_int32(env, rect.left, &ret_arr[0]) == napi_ok);
-  assert(napi_create_int32(env, rect.top, &ret_arr[1]) == napi_ok);
+  assert(napi_create_array_with_length(env, 6, &ret) == napi_ok);
+  napi_value ret_arr[6];
+  assert(napi_create_int32(env, wndRect.left, &ret_arr[0]) == napi_ok);
+  assert(napi_create_int32(env, wndRect.top, &ret_arr[1]) == napi_ok);
   assert(napi_set_element(env, ret, 0, ret_arr[0]) == napi_ok);
   assert(napi_set_element(env, ret, 1, ret_arr[1]) == napi_ok);
 
-  GetClientRect(hwnd, &rect);
-  assert(napi_create_double(env, (rect.right - 1) * 96 / currentDpi, &ret_arr[2]) == napi_ok);
-  assert(napi_create_double(env, (rect.bottom - 1) * 96 / currentDpi, &ret_arr[3]) == napi_ok);
+  GetClientRect(hwnd, &clientRect);
+  assert(napi_create_double(env, (clientRect.right - 1) * 96 / currentDpi, &ret_arr[2]) == napi_ok);
+  assert(napi_create_double(env, (clientRect.bottom - 1) * 96 / currentDpi, &ret_arr[3]) == napi_ok);
   assert(napi_set_element(env, ret, 2, ret_arr[2]) == napi_ok);
   assert(napi_set_element(env, ret, 3, ret_arr[3]) == napi_ok);
+
+  // window size
+  assert(napi_create_double(env, (wndRect.right - wndRect.left) * 96 / currentDpi, &ret_arr[4]) == napi_ok);
+  assert(napi_create_double(env, (wndRect.bottom - wndRect.top) * 96 / currentDpi, &ret_arr[5]) == napi_ok);
+  assert(napi_set_element(env, ret, 4, ret_arr[4]) == napi_ok);
+  assert(napi_set_element(env, ret, 5, ret_arr[5]) == napi_ok);
 
   return ret;
 }
@@ -1222,7 +1287,7 @@ napi_value API_ShowWindow(napi_env env, napi_callback_info info) {
 
 napi_value API_CloseWindowFunc(napi_env env, napi_callback_info info) {
   DestroyWindow(hwnd);
-  UnregisterClass((LPCWSTR)g_szClassName, NULL);
+  UnregisterClass((LPCWSTR)appId, NULL);
   return 0;
 }
 

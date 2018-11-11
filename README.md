@@ -88,7 +88,10 @@ options = {
   titleBarHeight: 0,
   transparency: false,
   transparentColor: [255, 0, 0],
-  alwaysOnTop: false
+  alwaysOnTop: false,
+  persistPosition: true,
+  minWidth: 150,
+  minHeight: 150
 };
 ```
 

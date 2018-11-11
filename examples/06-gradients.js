@@ -1,5 +1,5 @@
 const GDILib = require('../');
-const window = GDILib.init({ title: 'GDILib - Example 6.', width: 600, height: 500 });
+const window = GDILib.init({ title: 'GDILib - Example 6.', appId: 'GDI_EXAMPLE_6', width: 600, height: 500 });
 
 window.onPaint(g => {
   g.clear(39, 40, 34);

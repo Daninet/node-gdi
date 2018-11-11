@@ -3,7 +3,7 @@
     {
       "target_name": "<(module_name)",
       "sources": [ "./src/gdi.cc" ],
-      "libraries": [ "Gdiplus.lib", "Shlwapi.lib" ],
+      "libraries": [ "Gdiplus.lib", "Shlwapi.lib", "Shcore.lib"],
     },
     {
       "target_name": "action_after_build",

@@ -1,5 +1,5 @@
 const GDILib = require('..');
-const window = GDILib.init({ title: 'GDILib - Example 8.', alwaysOnTop: true, transparency: true, transparentColor: [255, 0, 0] });
+const window = GDILib.init({ title: 'GDILib - Example 8.', appId: 'GDI_EXAMPLE_8', alwaysOnTop: true, transparency: true, transparentColor: [255, 0, 0] });
 
 window.onPaint(g => {
   g.clear(255, 0, 0); // clear screen to transparent

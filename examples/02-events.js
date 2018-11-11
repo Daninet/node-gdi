@@ -1,5 +1,5 @@
 const GDILib = require('../');
-const window = GDILib.init({ title: 'GDILib - Example 2.' });
+const window = GDILib.init({ title: 'GDILib - Example 2.', appId: 'GDI_EXAMPLE_2' });
 
 window.onClick(msg => {
   console.log('onClick', msg);

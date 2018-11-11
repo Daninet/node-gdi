@@ -5,11 +5,7 @@ const titleBarHeight = 30;
 
 let closeButtonHover = false;
 
-const window = GDILib.init({ title: 'GDILib - Example 7.', width: 600, height: 500, frameless: true, titleBarHeight });
-
-process.nextTick(() => {
-  window.setPosition(20, 20);
-});
+const window = GDILib.init({ title: 'GDILib - Example 7.', appId: 'GDI_EXAMPLE_7', width: 600, height: 500, frameless: true, titleBarHeight });
 
 window.onPaint(g => {
   const { width, height } = window.getSize();
@@ -58,6 +54,6 @@ window.onMouseMove(msg => {
 
 window.onMouseDown(msg => {
   if (closeButtonHitTest(msg.x, msg.y)) {
-    process.exit(0);
+    window.close();
   }
 });
